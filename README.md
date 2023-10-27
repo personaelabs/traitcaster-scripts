@@ -1,22 +1,31 @@
 # Traitcaster scripts
 
-## Find traits
+### Find traits
 
 - Find all traits of all the Farcaster accounts.
-- The mappings trait $\to$ satisfying addresses are stored in `csv/`. The script
-  will read the mapping and output the Farcaster accounts that satisfy the traits.
+- The script
+  will read the mapping in `csv/` and output the Farcaster accounts that satisfy the traits.
 
 ```
 pnpm ts-node ./src/find-traits.ts
 ```
 
-## Get all ENS names of all existing Farcaster accounts
+### Get Farcaster user profiles
 
-- Find all ENS names of all the Farcaster accounts.
-- You'll need to have a Farcaster hub running locally to run this script.
+- You'll need to have a Farcaster hub running locally to execute this script.
 
 ```
-pnpm ts-node ./src/get-fc-ens.ts
+pnpm ts-node ./src/get-fc-users.ts
 ```
 
-- The file `fc-custody-accounts.csv` is a result of [this](https://dune.com/queries/3147327) Dune query.
+### Get Dune address labels
+
+- Run a Dune query to get all the Dune address labels of Farcaster users. Due to Dune API limits, currently the script only gets the labels of the users that have an ENS address.
+
+```
+pnpm ts-node ./src/get-fc-dune-labels.ts
+```
+
+---
+
+- The file `fc-custody-accounts.csv` is an output of [this](https://dune.com/queries/3147327) Dune query.

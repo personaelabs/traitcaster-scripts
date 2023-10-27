@@ -2,10 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { readCSV, readAddresses } from './utils';
 import binarySearch from 'binary-search';
+import { UserProfile } from './types';
 
 let traitsLoaded = false;
 
 let traits: { [key: string]: bigint[] } = {};
+let duneLabels: { [key: string]: string } = {};
 
 // Load all traits into memory
 // We sort the trait accounts so we can binary search through them
@@ -23,6 +25,10 @@ const loadTraits = async () => {
 
     traits[traitName] = sortedTraitAccounts;
   }
+
+  // Load Dune labels
+  const duneLabelsJSON = await fs.readFileSync('fc-dune-labels.json', 'utf8');
+  duneLabels = JSON.parse(duneLabelsJSON);
 
   traitsLoaded = true;
 };
@@ -50,47 +56,52 @@ export const findTraits = async (_address: string): Promise<string[]> => {
     }
   }
 
+  // Add Dune labels
+  const accountDuneLabels = duneLabels[_address.toLowerCase()];
+  if (accountDuneLabels) {
+    traitsFound.push(...accountDuneLabels);
+  }
+
   return traitsFound;
 };
 
-type AccountToTraits = {
-  [key: number]: string[];
+type AccountRecord = UserProfile & {
+  custodyAddress: string;
+  traits: string[];
 };
 
 const findTraitsAll = async () => {
-  const fcAccountsFile = 'fc-custody-accounts.csv';
-
-  const fcAccountToTraits: AccountToTraits[] = [];
+  const fcAccountToTraits: AccountRecord[] = [];
 
   // Load all FC accounts
-  const fcCustodyAccounts = await readCSV(fcAccountsFile);
+  const fcUsers = (await readCSV('fc-users.csv')) as UserProfile[];
+  const fcCustodyAccounts = await readCSV('fc-custody-accounts.csv');
 
-  console.log('Custody accounts:');
   // Find traits for each FC account by its custody address
-  for (const fcCustodyAccount of fcCustodyAccounts) {
-    const traits = await findTraits(fcCustodyAccount.address);
-    if (traits.length) {
-      console.log(`fid:${fcCustodyAccount.fid} (${fcCustodyAccount.address}): ${traits}`);
+  for (const fcUser of fcUsers) {
+    const traits = [];
 
-      fcAccountToTraits.push({
-        [fcCustodyAccount.fid.toString()]: traits,
-      });
+    // Get the custody address of the FID
+    const custodyAccount = fcCustodyAccounts.find((account) => account.fid === fcUser.fid);
+
+    if (!custodyAccount) {
+      console.log(`No custody account found for FID ${fcUser.fid}`);
+      continue;
     }
-  }
 
-  const fcAddress = 'fc-ens-accounts.csv';
-  // Load all FC accounts with ENS names
-  const fcENSAccounts = await readCSV(fcAddress);
+    const custodyAddressTraits = await findTraits(custodyAccount.address);
+    traits.push(...custodyAddressTraits);
 
-  console.log('\nENS accounts:');
-  // Find traits for each FC account by its ENS address
-  for (const fcENSAccount of fcENSAccounts) {
-    const traits = await findTraits(fcENSAccount.ensAddress);
+    if (fcUser.ensAddress) {
+      const ensTraits = await findTraits(fcUser.ensAddress);
+      traits.push(...ensTraits);
+    }
+
     if (traits.length) {
-      console.log(`fid:${fcENSAccount.fid} ${fcENSAccount.ens}: ${traits}`);
-
       fcAccountToTraits.push({
-        [fcENSAccount.fid.toString()]: traits,
+        ...fcUser,
+        custodyAddress: custodyAccount.address as string,
+        traits,
       });
     }
   }

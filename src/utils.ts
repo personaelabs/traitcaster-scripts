@@ -38,3 +38,9 @@ export const readCSV = async (csvFilePath: string): Promise<{ [key: string]: str
       });
   });
 };
+
+/*
+readCSV('fc-ens-accounts.csv').then((accounts) => {
+  console.log(accounts.map((account) => account.ensAddress));
+});
+*/
