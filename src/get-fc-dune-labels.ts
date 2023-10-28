@@ -40,14 +40,14 @@ const sleep = (ms: number) => {
 };
 
 const findTraitsDune = async () => {
-  // Load all FC accounts
-  // const fcCustodyAccounts = await readCSV('fc-custody-accounts.csv');
-  const fcENSAccounts = await readCSV('fc-ens-accounts.csv');
+  const fcENSAccounts = await readCSV('fc-users.csv');
 
-  const addresses = fcENSAccounts.map((account) => account.ensAddress.toLowerCase());
+  const addresses = fcENSAccounts
+    .filter((account) => account.ensAddress)
+    .map((account) => account.ensAddress.toLowerCase());
 
   console.log('Executing Dune query...');
-  const executionId = await executeQuery('3150680', {
+  const executionId = await executeQuery('3152483', {
     accounts: addresses.join(','),
   });
 
@@ -65,6 +65,12 @@ const findTraitsDune = async () => {
 
   const queryResult = result.result.rows;
 
+  const outFile = 'fc-nft-transfer.json';
+  fs.writeFileSync(outFile, JSON.stringify(queryResult, null, 2));
+
+  console.log(`\nOutput written to ${outFile}`);
+
+  /*
   // Map addresses to labels
   let addressToLabels: { [key: string]: string } = {};
   for (const row of queryResult) {
@@ -75,6 +81,7 @@ const findTraitsDune = async () => {
   fs.writeFileSync(outFile, JSON.stringify(addressToLabels, null, 2));
 
   console.log(`\nOutput written to ${outFile}`);
+  */
 };
 
 findTraitsDune();
