@@ -7,4 +7,5 @@ export type UserProfile = {
   username: string | null;
   ens: string | null;
   ensAddress: string | null;
+  followers: string | null;
 };

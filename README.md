@@ -18,14 +18,6 @@ pnpm ts-node ./src/find-traits.ts
 pnpm ts-node ./src/get-fc-users.ts
 ```
 
-### Get Dune address labels
-
-- Run a Dune query to get all the Dune address labels of Farcaster users. Due to Dune API limits, currently the script only gets the labels of the users that have an ENS address.
-
-```
-pnpm ts-node ./src/get-fc-dune-labels.ts
-```
-
 ---
 
 - The file `fc-custody-accounts.csv` is an output of [this](https://dune.com/queries/3147327) Dune query.

@@ -37,8 +37,43 @@ const userDataTypes = [
   },
 ];
 
+const getFollowerCount = async (fid: number): Promise<number> => {
+  console.time(`Getting follower count for ${fid}`);
+  let nextPageToken = '';
+  let followerCount = 0;
+  let i = 0;
+  while (true) {
+    console.log(fid);
+    const { data } = await axios.get(HUBBLE_URL + '/linksByTargetFid', {
+      params: {
+        target_fid: fid,
+        link_type: 'follow',
+        pageToken: nextPageToken,
+      },
+    });
+
+    console.log(`${fid} - ${data.messages.length}`);
+
+    nextPageToken = data.nextPageToken;
+
+    followerCount += data.messages.length;
+
+    if (nextPageToken === '') {
+      break;
+    }
+
+    i++;
+
+    if (i > 10) {
+      throw new Error(`Too many pages for ${fid}`);
+    }
+  }
+  console.timeEnd(`Getting follower count for ${fid}`);
+  return followerCount;
+};
+
 // Get Farcaster user profile by FID from Hubble
-const getUserProfile = async (fid: number): Promise<UserProfile | null> => {
+export const getUserProfile = async (fid: number): Promise<UserProfile | null> => {
   let profile: any = {};
   try {
     for (const { key, type } of userDataTypes) {
@@ -77,6 +112,8 @@ const getUserProfile = async (fid: number): Promise<UserProfile | null> => {
     username: profile.username || null,
     ens: profile.ens || null,
     ensAddress: profile.ensAddress || null,
+    // followers: profile.en ? await getFollowerCount(fid) : null, // Only get follower count if the user has an ENS name
+    followers: null,
   };
 };
 
@@ -136,6 +173,7 @@ const getAllFcUsers = async () => {
           { id: 'pfp', title: 'pfp' },
           { id: 'displayName', title: 'displayName' },
           { id: 'bio', title: 'bio' },
+          { id: 'followers', title: 'followers' },
         ],
       });
 

@@ -1,67 +1,11 @@
 import fs from 'fs';
-import path from 'path';
-import { readCSV, readAddresses } from './utils';
-import binarySearch from 'binary-search';
+import { readCSV } from './utils';
 import { UserProfile } from './types';
-
-let traitsLoaded = false;
-
-let traits: { [key: string]: bigint[] } = {};
-let duneLabels: { [key: string]: string } = {};
-
-// Load all traits into memory
-// We sort the trait accounts so we can binary search through them
-const loadTraits = async () => {
-  const traitFiles = fs.readdirSync('./traits');
-
-  for (const traitFileName of traitFiles) {
-    const traitName = traitFileName.replace('.csv', '');
-
-    const traitFile = path.join('./traits', traitFileName);
-    const traitAccounts = await readAddresses(traitFile);
-
-    // Sort trait accounts so we can binary search through them
-    const sortedTraitAccounts = traitAccounts.sort((a, b) => (a > b ? 1 : -1));
-
-    traits[traitName] = sortedTraitAccounts;
-  }
-
-  // Load Dune labels
-  const duneLabelsJSON = await fs.readFileSync('fc-dune-labels.json', 'utf8');
-  duneLabels = JSON.parse(duneLabelsJSON);
-
-  traitsLoaded = true;
-};
+import { getNFTs } from './zora';
 
 // Find traits that a given address satisfies
-export const findTraits = async (_address: string): Promise<string[]> => {
-  if (!traitsLoaded) {
-    await loadTraits();
-  }
-
-  const traitsFound = [];
-
-  const address = BigInt(_address);
-
-  for (const trait of Object.keys(traits)) {
-    const traitAccounts = traits[trait];
-
-    // Search traits the address satisfies
-    const index = binarySearch(traitAccounts, address, (element: bigint, needle: bigint) =>
-      element === needle ? 0 : element > needle ? 1 : -1,
-    );
-
-    if (index >= 0) {
-      traitsFound.push(trait);
-    }
-  }
-
-  // Add Dune labels
-  const accountDuneLabels = duneLabels[_address.toLowerCase()];
-  if (accountDuneLabels) {
-    traitsFound.push(...accountDuneLabels);
-  }
-
+export const findTraits = async (address: string): Promise<string[]> => {
+  const traitsFound = await getNFTs(address);
   return traitsFound;
 };
 
@@ -70,40 +14,54 @@ type AccountRecord = UserProfile & {
   traits: string[];
 };
 
+const sleep = (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
 const findTraitsAll = async () => {
   const fcAccountToTraits: AccountRecord[] = [];
-
+  const fcCustodyAccounts = await readCSV('fc-custody-accounts.csv');
   // Load all FC accounts
   const fcUsers = (await readCSV('fc-users.csv')) as UserProfile[];
-  const fcCustodyAccounts = await readCSV('fc-custody-accounts.csv');
 
-  // Find traits for each FC account by its custody address
-  for (const fcUser of fcUsers) {
-    const traits = [];
+  // FC accounts with ENS names.
+  // We only search traits for FC accounts with ENS names for now.
+  const fcENSUsers = fcUsers.filter((user) => user.ensAddress);
 
-    // Get the custody address of the FID
-    const custodyAccount = fcCustodyAccounts.find((account) => account.fid === fcUser.fid);
+  // Find traits for FC accounts with ENS names
+  const batchSize = 20;
+  for (let i = 120; i < fcENSUsers.length; i += batchSize) {
+    const batch = fcENSUsers.slice(i, i + batchSize);
 
-    if (!custodyAccount) {
-      console.log(`No custody account found for FID ${fcUser.fid}`);
-      continue;
-    }
+    console.time(`Batch ${i} - ${i + batchSize}`);
+    await Promise.all(
+      batch.map(async (fcUser) => {
+        try {
+          // Get the custody address of the FID
+          const custodyAccount = fcCustodyAccounts.find((account) => account.fid === fcUser.fid);
 
-    const custodyAddressTraits = await findTraits(custodyAccount.address);
-    traits.push(...custodyAddressTraits);
+          if (!custodyAccount) {
+            console.log(`No custody account found for FID ${fcUser.fid}`);
+            return;
+          }
 
-    if (fcUser.ensAddress) {
-      const ensTraits = await findTraits(fcUser.ensAddress);
-      traits.push(...ensTraits);
-    }
+          // Find traits for the FC account
+          const traits = await findTraits(fcUser.ensAddress!);
 
-    if (traits.length) {
-      fcAccountToTraits.push({
-        ...fcUser,
-        custodyAddress: custodyAccount.address as string,
-        traits,
-      });
-    }
+          fcAccountToTraits.push({
+            ...fcUser,
+            custodyAddress: custodyAccount.address as string,
+            traits,
+          });
+        } catch (err) {
+          console.log(`Error finding traits for ${fcUser.ens}`);
+        }
+      }),
+    );
+
+    console.timeEnd(`Batch ${i} - ${i + batchSize}`);
+
+    await sleep(1000);
   }
 
   fs.writeFileSync('fc-account-traits.json', JSON.stringify(fcAccountToTraits, null, 2));

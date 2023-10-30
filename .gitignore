@@ -1,5 +1,4 @@
 node_modules/
 .env
 fc-account-traits.json
-fc-dune-labels.json
 fc-users.csv
