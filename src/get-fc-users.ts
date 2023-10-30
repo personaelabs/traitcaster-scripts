@@ -76,6 +76,7 @@ const getFollowerCount = async (fid: number): Promise<number> => {
 export const getUserProfile = async (fid: number): Promise<UserProfile | null> => {
   let profile: any = {};
   try {
+    let foundENS = false;
     for (const { key, type } of userDataTypes) {
       const { data } = await axios.get(HUBBLE_URL + '/userDataByFid', {
         params: {
@@ -89,14 +90,21 @@ export const getUserProfile = async (fid: number): Promise<UserProfile | null> =
         profile[type] = value;
       }
 
-      if (type === 'username') {
-        const username = value;
+      if (foundENS) {
+        continue;
+      }
 
-        // Get the ENS name and address it the username is an ENS name
-        if (username.includes('.eth')) {
-          profile['ens'] = username;
-          profile['ensAddress'] = await getEnsAddress(username);
-        }
+      // if value matches ....eth, extract it out
+      const ensRE = /[^\s-]*\.eth/;
+
+      // look for match with each type
+      const match = value.match(ensRE);
+      if (match) {
+        foundENS = true;
+
+        console.log(`found ens name: ${match[0]} as ${type}`);
+        profile['ens'] = match[0];
+        profile['ensAddress'] = await getEnsAddress(match[0]);
       }
     }
   } catch (err: any) {
