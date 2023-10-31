@@ -2,11 +2,15 @@ import fs from 'fs';
 import { readCSV } from './utils';
 import { UserProfile } from './types';
 import { getNFTs } from './zora';
+import { getEthTraits } from './eth-og';
 
 // Find traits that a given address satisfies
 export const findTraits = async (address: string): Promise<string[]> => {
-  const traitsFound = await getNFTs(address);
-  return traitsFound;
+  // const traitsFound = await getNFTs(address);
+  // return traitsFound;
+
+  const traits = await getEthTraits(address);
+  return traits;
 };
 
 type AccountRecord = UserProfile & {
@@ -30,7 +34,7 @@ const findTraitsAll = async () => {
 
   // Find traits for FC accounts with ENS names
   const batchSize = 20;
-  for (let i = 120; i < fcENSUsers.length; i += batchSize) {
+  for (let i = 0; i < fcENSUsers.length; i += batchSize) {
     const batch = fcENSUsers.slice(i, i + batchSize);
 
     console.time(`Batch ${i} - ${i + batchSize}`);
@@ -55,6 +59,7 @@ const findTraitsAll = async () => {
           });
         } catch (err) {
           console.log(`Error finding traits for ${fcUser.ens}`);
+          console.error(err);
         }
       }),
     );
