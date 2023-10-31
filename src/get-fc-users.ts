@@ -108,6 +108,7 @@ export const getUserProfile = async (fid: number): Promise<UserProfile | null> =
       }
     }
   } catch (err: any) {
+    console.error(`error fetching profile for ${fid}: ${err}`);
     return null;
   }
 
