@@ -102,7 +102,6 @@ export const getUserProfile = async (fid: number): Promise<UserProfile | null> =
       if (match) {
         foundENS = true;
 
-        console.log(`found ens name: ${match[0]} as ${type}`);
         profile['ens'] = match[0];
         profile['ensAddress'] = await getEnsAddress(match[0]);
       }
